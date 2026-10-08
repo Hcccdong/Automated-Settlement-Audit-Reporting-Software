@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>工程结算审核报告生成软件</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: "Microsoft YaHei", "PingFang SC", sans-serif; background: #f0f2f5; color: #333; }
+  header { background: #1f3a5f; color: #fff; padding: 14px 24px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
+  header h1 { font-size: 18px; font-weight: 600; }
+  .project-bar { display: flex; gap: 8px; align-items: center; }
+  .project-bar select, .project-bar input { padding: 6px 10px; border: none; border-radius: 4px; font-size: 13px; }
+  .project-bar button { padding: 6px 14px; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; background: #4a90d9; color: #fff; }
+  .project-bar button:hover { background: #3a78c0; }
+  main { max-width: 900px; margin: 20px auto; padding: 0 16px 90px; }
+  .card { background: #fff; border-radius: 8px; padding: 20px 24px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+  .card h2 { font-size: 15px; color: #1f3a5f; border-left: 4px solid #4a90d9; padding-left: 10px; margin-bottom: 16px; }
+  .field { margin-bottom: 14px; }
+  .field label { display: block; font-size: 13px; color: #666; margin-bottom: 5px; }
+  .field input[type=text], .field textarea { width: 100%; padding: 8px 10px; border: 1px solid #d9d9d9; border-radius: 4px; font-size: 14px; font-family: inherit; }
+  .field input:focus, .field textarea:focus { outline: none; border-color: #4a90d9; }
+  .field textarea { min-height: 70px; resize: vertical; line-height: 1.6; }
+  .row { display: flex; gap: 14px; }
+  .row .field { flex: 1; }
+  .actions { position: fixed; bottom: 0; left: 0; right: 0; background: #fff; border-top: 1px solid #e0e0e0; padding: 10px 24px; box-shadow: 0 -2px 8px rgba(0,0,0,.06); }
+  .actions-inner { max-width: 900px; margin: 0 auto; }
+  .savepath { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; }
+  .savepath label { font-size: 13px; color: #666; white-space: nowrap; }
+  .savepath input { flex: 1; padding: 7px 10px; border: 1px solid #d9d9d9; border-radius: 4px; font-size: 13px; }
+  .savepath button { padding: 7px 14px; border: 1px solid #4a90d9; background: #fff; color: #4a90d9; border-radius: 4px; cursor: pointer; font-size: 13px; white-space: nowrap; }
+  .btn-row { display: flex; gap: 12px; align-items: center; justify-content: center; }
+  .btn { padding: 10px 28px; border: none; border-radius: 6px; font-size: 15px; cursor: pointer; }
+  .btn-primary { background: #1f6f43; color: #fff; }
+  .btn-primary:hover { background: #185a37; }
+  .btn:disabled { background: #aaa; cursor: not-allowed; }
+  #msg { font-size: 13px; }
+  #msg.ok { color: #1f6f43; }
+  #msg.err { color: #c0392b; }
+  .warn-box { background: #fff8e6; border: 1px solid #f0c36d; border-radius: 6px; padding: 12px 16px; margin-top: 12px; font-size: 13px; color: #8a6d1a; display: none; }
+  .result-box { background: #eefaf2; border: 1px solid #7fc89a; border-radius: 6px; padding: 12px 16px; margin-top: 12px; font-size: 14px; display: none; word-break: break-all; }
+  .result-box button { background: none; border: 1px solid #1f6f43; border-radius: 4px; padding: 4px 12px; cursor: pointer; margin-left: 10px; font-size: 13px; color: #1f6f43; }
+  .phase2 { color: #999; font-size: 13px; background: #f7f7f7; border: 1px dashed #ccc; border-radius: 6px; padding: 14px 16px; }
+  .tpl-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .tpl-row select { padding: 7px 10px; border: 1px solid #d9d9d9; border-radius: 4px; font-size: 13px; min-width: 260px; }
+  .tpl-row button, .tpl-row .upload-btn { padding: 7px 16px; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; background: #4a90d9; color: #fff; }
+  .tpl-row .upload-btn { display: inline-block; }
+  .tpl-row input[type=file] { display: none; }
+  .tpl-hint { font-size: 12px; color: #999; margin-top: 8px; line-height: 1.7; }
+  .tpl-active { font-size: 13px; color: #1f6f43; margin-bottom: 10px; }
+  .xl-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 8px; }
+  .xl-table th, .xl-table td { border: 1px solid #e3e3e3; padding: 5px 8px; text-align: left; }
+  .xl-table th { background: #f5f7fa; color: #555; font-weight: 600; }
+  .xl-group { background: #eaf1f8; font-weight: 600; color: #1f3a5f; }
+  .xl-dim { color: #bbb; }
+  .xl-num { text-align: right; font-variant-numeric: tabular-nums; }
+  .xl-sheet-bar { display: flex; align-items: center; gap: 8px; margin: 12px 0 6px; font-size: 14px; font-weight: 600; color: #1f3a5f; }
+  .xl-warn { font-size: 12px; color: #8a6d1a; background: #fff8e6; border-radius: 4px; padding: 6px 10px; margin: 4px 0; }
+</style>
+</head>
+<body>
+<header>
+  <h1>工程结算审核报告生成软件</h1>
+  <div class="project-bar">
+    <select id="projectList"><option value="">—— 载入已存项目 ——</option></select>
+    <button onclick="loadProject()">载入</button>
+    <button onclick="saveProject()">保存当前项目</button>
+  </div>
+</header>
+<main>
+  <div class="card">
+    <h2>报告模板</h2>
+    <div class="tpl-active" id="tplActive">当前模板：加载中…</div>
+    <div class="tpl-row">
+      <select id="tplList"></select>
+      <button onclick="switchTemplate()">使用该模板</button>
+      <label class="upload-btn">导入模板(.docx)<input type="file" id="tplFile" accept=".docx" onchange="importTemplate()"></label>
+    </div>
+    <div class="tpl-hint">
+      直接导入你的 .docx 报告模板即可：软件会<b>自动识别</b>工程名称、各单位、金额、日期等可变内容并生成占位版投入使用，版式、字体、下划线、线条全部原样保留。<br>
+      个别识别不到的位置会列出提示，可手动在模板中改成 {{字段名}} 后重新导入。
+    </div>
+  </div>
+
+  <div id="formArea"></div>
+
+  <div class="card">
+    <h2>Excel 结算对比表导入</h2>
+    <div class="tpl-row">
+      <label class="upload-btn">上传对比表(.xlsx)<input type="file" id="excelFile" accept=".xlsx,.xlsm" onchange="uploadExcel()"></label>
+      <span id="excelStatus" style="font-size:13px;color:#666"></span>
+    </div>
+    <div id="excelPreview" style="display:none">
+      <div class="row" style="margin:14px 0 6px">
+        <div class="field">
+          <label>忽略阈值（偏差不于此金额的条目不列出，元）</label>
+          <input type="text" id="excelThreshold" value="1000">
+        </div>
+        <div class="field">
+          <label>总净核减（配平用，留空则不配平）</label>
+          <input type="text" id="excelTotalNet" placeholder="默认取表单中的净核减金额">
+        </div>
+      </div>
+      <div id="excelItems"></div>
+      <button class="btn btn-primary" style="margin-top:12px;padding:8px 22px;font-size:14px" onclick="composeExcel()">生成核减文字并填入报告</button>
+      <div id="excelComposeInfo" style="font-size:13px;color:#666;margin-top:8px"></div>
+    </div>
+    <div class="tpl-hint" style="margin-top:10px">
+      已适配广联达"工程审核简明表"版式（送审/审查并列 + 核增/核减列，核增=正偏差、核减=负偏差，名称自动带项目特征防歧义），
+      也兼容含"项目名称、单位工程、送审/审核工程量、单价、金额"栏目的通用对比表，自动按单位工程分组。<br>
+      原因规则：仅工程量变→工程量有误；仅单价变→单价有误；两者皆变→工程量及单价有误；无量价依据→待确认（可在下表中逐条修改）。
+    </div>
+  </div>
+
+  <div class="warn-box" id="warnBox"></div>
+  <div class="result-box" id="resultBox"></div>
+</main>
+
+<div class="actions">
+  <div class="actions-inner">
+    <div class="savepath">
+      <label>报告保存位置</label>
+      <input type="text" id="outDir" placeholder="留空则使用默认目录">
+      <button onclick="browseFolder()">浏览…</button>
+      <button onclick="saveOutDir()">记住此路径</button>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-primary" id="genBtn" onclick="generate()">生成审核报告</button>
+      <span id="msg"></span>
+    </div>
+  </div>
+</div>
+
+<script>
+let FIELDS = [];
+let lastResult = null;
+
+const SECTIONS = [
+  { title: "文头信息", names: ["咨询公司","报告文号","工程名称","委托单位"] },
+  { title: "项目概况", names: ["建设单位","代建单位","施工单位","监理单位","批复总投资","合同额","工程内容","工期说明"] },
+  { title: "审核依据与内容", names: ["审核依据","审核内容","审核程序"] },
+  { title: "有关事项说明", names: ["基期价格","下浮率","工期延期说明","人员到位说明","标化工地说明"] },
+  { title: "造价审核结果", names: ["送审金额","审定金额","核增金额","核减金额","净核减金额","核减明细"] },
+  { title: "落款信息", names: ["报告日期","抄送单位"] },
+];
+
+async function init() {
+  FIELDS = await (await fetch("/api/fields")).json();
+  renderForm();
+  refreshProjects();
+  refreshSettings();
+  refreshTemplates();
+}
+
+function renderForm() {
+  const area = document.getElementById("formArea");
+  area.innerHTML = "";
+  const byName = Object.fromEntries(FIELDS.map(f => [f.name, f]));
+  for (const sec of SECTIONS) {
+    const card = document.createElement("div");
+    card.className = "card";
+    card.innerHTML = `<h2>${sec.title}</h2>`;
+    const amountRow = [];
+    for (const name of sec.names) {
+      const f = byName[name];
+      if (!f) continue;
+      if (["送审金额","审定金额","核增金额","核减金额","净核减金额"].includes(name)) {
+        amountRow.push(f);
+        continue;
+      }
+      card.appendChild(makeField(f));
+    }
+    if (amountRow.length) {
+      const row = document.createElement("div");
+      row.className = "row";
+      amountRow.forEach(f => row.appendChild(makeField(f)));
+      card.insertBefore(row, card.children[1]);
+    }
+    area.appendChild(card);
+  }
+}
+
+function makeField(f) {
+  const div = document.createElement("div");
+  div.className = "field";
+  const label = document.createElement("label");
+  label.textContent = f.label;
+  div.appendChild(label);
+  let input;
+  if (f.type === "textarea") {
+    input = document.createElement("textarea");
+    if (f.name === "审核依据" || f.name === "核减明细") input.style.minHeight = "140px";
+  } else {
+    input = document.createElement("input");
+    input.type = "text";
+  }
+  input.id = "f_" + f.name;
+  input.value = f.default || "";
+  div.appendChild(input);
+  return div;
+}
+
+function collectValues() {
+  const values = {};
+  for (const f of FIELDS) {
+    const el = document.getElementById("f_" + f.name);
+    values[f.name] = el ? el.value : "";
+  }
+  const outDir = document.getElementById("outDir").value.trim();
+  if (outDir) values._out_dir = outDir;
+  return values;
+}
+
+function setValues(values) {
+  for (const f of FIELDS) {
+    const el = document.getElementById("f_" + f.name);
+    if (el && values[f.name] !== undefined) el.value = values[f.name];
+  }
+}
+
+// ---------- 项目 ----------
+async function refreshProjects() {
+  const list = await (await fetch("/api/projects")).json();
+  const sel = document.getElementById("projectList");
+  sel.innerHTML = '<option value="">—— 载入已存项目 ——</option>';
+  list.forEach(n => {
+    const o = document.createElement("option");
+    o.value = n; o.textContent = n;
+    sel.appendChild(o);
+  });
+}
+
+async function saveProject() {
+  const name = document.getElementById("f_工程名称").value.trim();
+  if (!name) { showMsg("请先填写工程名称再保存", false); return; }
+  const res = await (await fetch("/api/projects/" + encodeURIComponent(name), {
+    method: "POST", headers: {"Content-Type": "application/json"},
+    body: JSON.stringify(collectValues())
+  })).json();
+  showMsg(res.ok ? "已保存项目：" + res.name : "保存失败", res.ok);
+  refreshProjects();
+}
+
+async function loadProject() {
+  const name = document.getElementById("projectList").value;
+  if (!name) return;
+  const data = await (await fetch("/api/projects/" + encodeURIComponent(name))).json();
+  if (data.error) { showMsg(data.error, false); return; }
+  setValues(data);
+  showMsg("已载入项目：" + name, true);
+}
+
+// ---------- 保存路径 ----------
+async function refreshSettings() {
+  const s = await (await fetch("/api/settings")).json();
+  document.getElementById("outDir").value = s.out_dir || "";
+}
+
+async function browseFolder() {
+  const res = await (await fetch("/api/browse_folder", { method: "POST" })).json();
+  if (res.path) {
+    document.getElementById("outDir").value = res.path;
+    showMsg("已选择保存位置", true);
+  }
+}
+
+async function saveOutDir() {
+  const outDir = document.getElementById("outDir").value.trim();
+  const res = await (await fetch("/api/settings/out_dir", {
+    method: "POST", headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({ out_dir: outDir })
+  })).json();
+  showMsg(res.ok ? "已记住保存位置：" + res.out_dir : (res.error || "设置失败"), !!res.ok);
+}
+
+// ---------- 模板 ----------
+async function refreshTemplates() {
+  const t = await (await fetch("/api/templates")).json();
+  document.getElementById("tplActive").textContent = "当前模板：" + t.active;
+  const sel = document.getElementById("tplList");
+  sel.innerHTML = "";
+  const bi = document.createElement("option");
+  bi.value = ""; bi.textContent = "(内置) " + t.builtin;
+  sel.appendChild(bi);
+  t.imported.forEach(n => {
+    const o = document.createElement("option");
+    o.value = n; o.textContent = n;
+    sel.appendChild(o);
+  });
+  if (!t.active.startsWith("(内置)")) sel.value = t.active;
+}
+
+async function switchTemplate() {
+  const name = document.getElementById("tplList").value;
+  const res = await (await fetch("/api/templates/active", {
+    method: "POST", headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({ name })
+  })).json();
+  showMsg(res.ok ? "已切换模板" : (res.error || "切换失败"), !!res.ok);
+  refreshTemplates();
+}
+
+async function importTemplate() {
+  const input = document.getElementById("tplFile");
+  if (!input.files.length) return;
+  const fd = new FormData();
+  fd.append("file", input.files[0]);
+  showMsg("正在导入模板…", true);
+  const res = await (await fetch("/api/templates/import", { method: "POST", body: fd })).json();
+  input.value = "";
+  if (res.error) { showMsg("导入失败：" + res.error, false); return; }
+  showMsg(`模板已导入并启用：${res.name}（检测到 ${res.fields_found} 个字段）`, true);
+  if (res.warnings && res.warnings.length) {
+    const wb = document.getElementById("warnBox");
+    wb.innerHTML = "<b>模板提示：</b><br>" + res.warnings.join("<br>");
+    wb.style.display = "block";
+  }
+  refreshTemplates();
+}
+
+// ---------- 生成 ----------
+async function generate() {
+  const btn = document.getElementById("genBtn");
+  btn.disabled = true;
+  showMsg("正在生成…", true);
+  document.getElementById("warnBox").style.display = "none";
+  document.getElementById("resultBox").style.display = "none";
+  try {
+    const res = await (await fetch("/api/generate", {
+      method: "POST", headers: {"Content-Type": "application/json"},
+      body: JSON.stringify(collectValues())
+    })).json();
+    if (res.error) { showMsg("生成失败：" + res.error, false); return; }
+    showMsg("生成完成", true);
+    lastResult = res;
+    if (res.warnings && res.warnings.length) {
+      const wb = document.getElementById("warnBox");
+      wb.innerHTML = "<b>请注意：</b><br>" + res.warnings.join("<br>");
+      wb.style.display = "block";
+    }
+    const rb = document.getElementById("resultBox");
+    rb.innerHTML = `报告已生成：<b>${res.file}</b><br>保存位置：${res.dir}
+      <div style="margin-top:8px">
+      <button onclick="openFile()">打开预览</button>
+      <button onclick="downloadFile()">下载</button></div>`;
+    rb.style.display = "block";
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function openFile() {
+  if (!lastResult) return;
+  await fetch("/api/open", {
+    method: "POST", headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({ dir: lastResult.dir, file: lastResult.file })
+  });
+}
+
+async function downloadFile() {
+  if (!lastResult) return;
+  const resp = await fetch("/api/download", {
+    method: "POST", headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({ dir: lastResult.dir, file: lastResult.file })
+  });
+  const blob = await resp.blob();
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = lastResult.file;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function showMsg(text, ok) {
+  const m = document.getElementById("msg");
+  m.textContent = text;
+  m.className = ok ? "ok" : "err";
+}
+
+// ---------- Excel 对比表 ----------
+let EXCEL = null;  // {token, sheets}
+const REASONS = ["工程量有误", "单价有误", "工程量及单价有误", "取费标准有误", "待确认"];
+
+function fmtNum(n) {
+  if (n === null || n === undefined) return "";
+  return Math.abs(n - Math.round(n)) < 0.005 ? String(Math.round(n)) : n.toFixed(2);
+}
+
+async function uploadExcel() {
+  const input = document.getElementById("excelFile");
+  if (!input.files.length) return;
+  const fd = new FormData();
+  fd.append("file", input.files[0]);
+  document.getElementById("excelStatus").textContent = "正在解析…";
+  const res = await (await fetch("/api/excel/upload", { method: "POST", body: fd })).json();
+  input.value = "";
+  if (res.error) {
+    document.getElementById("excelStatus").textContent = "解析失败：" + res.error;
+    return;
+  }
+  EXCEL = res;
+  document.getElementById("excelStatus").textContent =
+    `已识别 ${res.sheets.length} 个工作表`;
+  renderExcelPreview();
+}
+
+function renderExcelPreview() {
+  document.getElementById("excelPreview").style.display = "block";
+  const total = document.getElementById("f_净核减金额");
+  if (total && total.value.trim()) document.getElementById("excelTotalNet").value = total.value.trim();
+  const box = document.getElementById("excelItems");
+  box.innerHTML = "";
+  EXCEL.sheets.forEach((sh, s) => {
+    const bar = document.createElement("div");
+    bar.className = "xl-sheet-bar";
+    bar.innerHTML = `<label><input type="checkbox" id="xl_sheet_${s}" checked> 采用工作表：${sh.sheet}</label>`;
+    box.appendChild(bar);
+    (sh.warnings || []).forEach(w => {
+      const d = document.createElement("div");
+      d.className = "xl-warn";
+      d.textContent = w;
+      box.appendChild(d);
+    });
+    const table = document.createElement("table");
+    table.className = "xl-table";
+    table.innerHTML = `<tr><th style="width:34%">名称</th><th>送审(元)</th><th>审核(元)</th>
+      <th>净核减(元)</th><th style="width:22%">调整原因</th><th>排除</th></tr>`;
+    sh.groups.forEach((g, gi) => {
+      const gh = document.createElement("tr");
+      gh.innerHTML = `<td colspan="6" class="xl-group">${g.unit}</td>`;
+      table.appendChild(gh);
+      g.items.forEach((it, i) => {
+        const tr = document.createElement("tr");
+        const under = Math.abs(it.net) < 1000;
+        if (under) tr.className = "xl-dim";
+        const opts = REASONS.map(r => `<option ${r === it.reason ? "selected" : ""}>${r}</option>`).join("");
+        tr.innerHTML = `<td>${it.name}</td>
+          <td class="xl-num">${fmtNum(it.amt_s)}</td>
+          <td class="xl-num">${fmtNum(it.amt_a)}</td>
+          <td class="xl-num">${fmtNum(it.net)}${under ? "（<阈值）" : ""}</td>
+          <td><select id="xl_r_${s}_${gi}_${i}" style="width:100%">${opts}</select></td>
+          <td style="text-align:center"><input type="checkbox" id="xl_x_${s}_${gi}_${i}"></td>`;
+        table.appendChild(tr);
+      });
+    });
+    box.appendChild(table);
+  });
+}
+
+async function composeExcel() {
+  if (!EXCEL) return;
+  const overrides = {};
+  const excludedSheets = [];
+  EXCEL.sheets.forEach((sh, s) => {
+    if (!document.getElementById(`xl_sheet_${s}`).checked) {
+      excludedSheets.push(s);
+      return;
+    }
+    sh.groups.forEach((g, gi) => {
+      g.items.forEach((it, i) => {
+        const r = document.getElementById(`xl_r_${s}_${gi}_${i}`);
+        const x = document.getElementById(`xl_x_${s}_${gi}_${i}`);
+        const ov = {};
+        if (r && r.value !== it.reason) ov.reason = r.value;
+        if (x && x.checked) ov.excluded = true;
+        if (Object.keys(ov).length) overrides[`${s},${gi},${i}`] = ov;
+      });
+    });
+  });
+  const res = await (await fetch("/api/excel/compose", {
+    method: "POST", headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({
+      token: EXCEL.token,
+      threshold: parseFloat(document.getElementById("excelThreshold").value) || 1000,
+      total_net: document.getElementById("excelTotalNet").value.trim(),
+      overrides, excluded_sheets: excludedSheets
+    })
+  })).json();
+  if (res.error) { showMsg("组稿失败：" + res.error, false); return; }
+  const target = document.getElementById("f_核减明细");
+  target.value = res.text;
+  target.style.minHeight = "220px";
+  let info = `已填入"核减明细"字段：列出条目合计 ${fmtNum(res.listed_sum)} 元`;
+  if (res.remainder !== null && res.remainder !== undefined) {
+    info += `，配平余额 ${fmtNum(res.remainder)} 元（已生成取费基数变化说明）`;
+  }
+  info += `，忽略 ${res.skipped} 条（低于阈值或被排除）`;
+  document.getElementById("excelComposeInfo").textContent = info;
+  showMsg("核减文字已生成并填入表单，请检查后生成报告", true);
+  target.scrollIntoView({ behavior: "smooth", block: "center" });
+}
+
+init();
+</script>
+</body>
+</html>
